@@ -28,15 +28,17 @@ fn main() {
 fn handle_client(mut stream: TcpStream) {
     let mut buf = [0; 1024];
     loop {
-        // let bytes_read = stream.read(&mut buf).expect("Failed to read from client");
-        //
-        // if bytes_read == 0 {
-        //     return;
-        // }
+        let bytes_read = stream.read(&mut buf).expect("Failed to read from client");
+
+        if bytes_read == 0 {
+            return;
+        }
 
         let response = "+PONG\r\n";
         stream
             .write_all(response.as_bytes())
             .expect("Failed to write to client");
+
+        println!("Responded with PONG");
     }
 }
