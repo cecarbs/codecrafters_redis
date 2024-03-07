@@ -43,9 +43,9 @@ async fn handle_connection(mut socket: TcpStream) {
     let mut buf = [0; 1024];
     // let mut stream = BufStream::new(socket);
 
-    let bytes_read = socket.read(&mut buf).await;
+    let bytes_read = socket.read(&mut buf).await.unwrap();
 
-    println!("bytes read {:?}", bytes_read.unwrap());
+    println!("bytes read {:?}", bytes_read);
 
     let response = "+PONG\r\n";
     let _ = socket.write_all(response.as_bytes()).await;
