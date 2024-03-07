@@ -17,24 +17,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     loop {
         match listener.accept().await {
-            Ok((socket, addr)) => {
-                println!("accepted new connection");
+            Ok((socket, _)) => {
+                println!("Established connection with client.");
 
                 tokio::spawn(handle_connection(socket));
             }
-            Err(e) => println!("couldn't get client: {:?}", e),
+            Err(e) => println!("Failed to establish connection with client: {:?}", e),
         }
     }
 }
 
 async fn handle_connection(mut socket: TcpStream) {
-    let mut buf = [0; 1024];
+    let mut buf = [0u8; 512 * 1024 * 1024];
 
     loop {
         match socket.read(&mut buf).await {
             Ok(bytes_read) => {
                 if bytes_read == 0 {
-                    // Connection closed by the client
                     println!("Connection closed by client");
                     break;
                 }
@@ -42,10 +41,8 @@ async fn handle_connection(mut socket: TcpStream) {
                 let request = String::from_utf8_lossy(&buf[..bytes_read]);
                 println!("Received request: {}", request);
 
-                // Process the request and prepare the response
                 let response = "+PONG\r\n";
 
-                // Write the response to the client
                 if let Err(e) = socket.write_all(response.as_bytes()).await {
                     eprintln!("Failed to write to client: {}", e);
                     break;
@@ -58,3 +55,5 @@ async fn handle_connection(mut socket: TcpStream) {
         }
     }
 }
+
+fn decode_resp_bulk_string() {}
