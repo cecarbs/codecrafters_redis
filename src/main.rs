@@ -45,6 +45,10 @@ async fn handle_connection(mut socket: TcpStream) {
 
     let bytes_read = socket.read(&mut buf).await.unwrap();
 
+    if bytes_read == 0 {
+        return;
+    }
+
     println!("bytes read {:?}", bytes_read);
 
     let response = "+PONG\r\n";
@@ -55,8 +59,6 @@ async fn handle_connection(mut socket: TcpStream) {
         }
         Err(e) => println!("Failed to write to client: {}", e),
     }
-
-    // println!("Failed to write to client");
 }
 
 // fn handle_client(mut stream: TcpStream) {
