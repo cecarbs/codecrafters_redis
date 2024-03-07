@@ -1,44 +1,77 @@
 // Uncomment this block to pass the first stage
 use std::{
+    error::Error,
     io::{Read, Write},
+};
+
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt, BufStream},
     net::{TcpListener, TcpStream},
 };
 
-fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     println!("Logs from your program will appear here!");
 
-    // Uncomment this block to pass the first stage
-    //
-    let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
-    //
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                println!("accepted new connection");
-                handle_client(stream);
-            }
-            Err(e) => {
-                println!("error: {}", e);
-            }
-        }
-    }
-}
+    let listener = TcpListener::bind("127.0.0.1:6379").await?;
 
-fn handle_client(mut stream: TcpStream) {
-    let mut buf = [0; 1024];
     loop {
-        let bytes_read = stream.read(&mut buf).expect("Failed to read from client");
+        match listener.accept().await {
+            Ok((socket, addr)) => {
+                println!("accepted new connection");
 
-        if bytes_read == 0 {
-            return;
+                tokio::spawn(handle_connection(socket));
+            }
+            Err(e) => println!("couldn't get client: {:?}", e),
         }
-
-        let response = "+PONG\r\n";
-        stream
-            .write_all(response.as_bytes())
-            .expect("Failed to write to client");
-
-        println!("Responded with PONG");
     }
+    //
+    // for stream in listener.try_into() {
+    //     match stream {
+    //         Ok(stream) => {
+    //             println!("accepted new connection");
+    //             handle_client(stream);
+    //         }
+    //         Err(e) => {
+    //             println!("error: {}", e);
+    //         }
+    //     }
+    // }
 }
+
+async fn handle_connection(mut socket: TcpStream) {
+    let mut buf = [0; 1024];
+    // let mut stream = BufStream::new(socket);
+
+    let bytes_read = socket.read(&mut buf).await;
+
+    if bytes_read.unwrap() == 0 {
+        return;
+    }
+
+    let response = "+PONG\r\n";
+    socket.write_all(response.as_bytes()).await.unwrap();
+
+    println!("Failed to write to client");
+    // socket
+    //     .write_all(response.as_bytes())
+    //     .expect("Failed to write to client");
+}
+
+// fn handle_client(mut stream: TcpStream) {
+//     let mut buf = [0; 1024];
+//     loop {
+//         let bytes_read = stream.read(&mut buf).expect("Failed to read from client");
+//
+//         if bytes_read == 0 {
+//             return;
+//         }
+//
+//         let response = "+PONG\r\n";
+//         stream
+//             .write_all(response.as_bytes())
+//             .expect("Failed to write to client");
+//
+//         println!("Responded with PONG");
+//     }
+// }
