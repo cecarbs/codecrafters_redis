@@ -45,17 +45,16 @@ async fn handle_connection(mut socket: TcpStream) {
 
     let bytes_read = socket.read(&mut buf).await;
 
+    println!("bytes read {:?}", bytes_read);
+
     if bytes_read.unwrap() == 0 {
         return;
     }
 
     let response = "+PONG\r\n";
-    socket.write_all(response.as_bytes()).await.unwrap();
+    let _ = socket.write_all(response.as_bytes()).await;
 
     println!("Failed to write to client");
-    // socket
-    //     .write_all(response.as_bytes())
-    //     .expect("Failed to write to client");
 }
 
 // fn handle_client(mut stream: TcpStream) {
