@@ -49,8 +49,14 @@ async fn handle_connection(mut socket: TcpStream) {
 
     let response = "+PONG\r\n";
     let _ = socket.write_all(response.as_bytes()).await;
+    match socket.write_all(response.as_bytes()).await {
+        Ok(_) => {
+            println!("Response sent successfully")
+        }
+        Err(e) => println!("Failed to write to client: {}", e),
+    }
 
-    println!("Failed to write to client");
+    // println!("Failed to write to client");
 }
 
 // fn handle_client(mut stream: TcpStream) {
