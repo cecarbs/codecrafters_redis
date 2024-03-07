@@ -38,28 +38,58 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //     }
     // }
 }
-
 async fn handle_connection(mut socket: TcpStream) {
     let mut buf = [0; 1024];
-    // let mut stream = BufStream::new(socket);
 
-    let bytes_read = socket.read(&mut buf).await.unwrap();
+    loop {
+        match socket.read(&mut buf).await {
+            Ok(bytes_read) => {
+                if bytes_read == 0 {
+                    // Connection closed by the client
+                    println!("Connection closed by client");
+                    break;
+                }
 
-    if bytes_read == 0 {
-        return;
-    }
+                let request = String::from_utf8_lossy(&buf[..bytes_read]);
+                println!("Received request: {}", request);
 
-    println!("bytes read {:?}", bytes_read);
+                // Process the request and prepare the response
+                let response = "+PONG\r\n";
 
-    let response = "+PONG\r\n";
-    let _ = socket.write_all(response.as_bytes()).await;
-    match socket.write_all(response.as_bytes()).await {
-        Ok(_) => {
-            println!("Response sent successfully")
+                // Write the response to the client
+                if let Err(e) = socket.write_all(response.as_bytes()).await {
+                    eprintln!("Failed to write to client: {}", e);
+                    break;
+                }
+            }
+            Err(e) => {
+                eprintln!("Error reading from client: {}", e);
+                break;
+            }
         }
-        Err(e) => println!("Failed to write to client: {}", e),
     }
 }
+// async fn handle_connection(mut socket: TcpStream) {
+//     let mut buf = [0; 1024];
+//     // let mut stream = BufStream::new(socket);
+//
+//     let bytes_read = socket.read(&mut buf).await.unwrap();
+//
+//     if bytes_read == 0 {
+//         return;
+//     }
+//
+//     println!("bytes read {:?}", bytes_read);
+//
+//     let response = "+PONG\r\n";
+//     let _ = socket.write_all(response.as_bytes()).await;
+//     match socket.write_all(response.as_bytes()).await {
+//         Ok(_) => {
+//             println!("Response sent successfully")
+//         }
+//         Err(e) => println!("Failed to write to client: {}", e),
+//     }
+// }
 
 // fn handle_client(mut stream: TcpStream) {
 //     let mut buf = [0; 1024];
