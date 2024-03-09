@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bytes::BytesMut;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, BufStream},
@@ -8,6 +10,7 @@ pub async fn handle_connection(mut socket: TcpStream) {
     // let mut buf = BytesMut::with_capacity(1024);
     let mut buf = [0; 1024];
 
+    let mut hash_map: HashMap<String, String> = HashMap::new();
     loop {
         match socket.read(&mut buf).await {
             Ok(bytes_read) => {
@@ -28,15 +31,35 @@ pub async fn handle_connection(mut socket: TcpStream) {
                     "echo" => {
                         let response = encode_resp_bulk_string(&decoded_str[1]);
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
-                            eprintln!("Failed to write to client: {}", e);
+                            eprintln!("ECHO: Failed to write to client: {}", e);
                             break;
                         }
                     }
                     "ping" => {
                         if let Err(e) = socket.write_all("+PONG\r\n".as_bytes()).await {
-                            eprintln!("Failed to write to client: {}", e);
+                            eprintln!("PING: Failed to write to client: {}", e);
                             break;
                         }
+                    }
+                    "set" => {
+                        hash_map.insert(decoded_str[1].to_owned(), decoded_str[2].to_owned());
+                        println!("Inserted into hashmap: {:?}", hash_map);
+                        if let Err(e) = socket.write_all("+OK\r\n".as_bytes()).await {
+                            eprintln!("SET: Failed to write to client: {}", e);
+                        }
+                        break;
+                    }
+                    "get" => {
+                        if let Some(key) = hash_map.get(&decoded_str[1]) {
+                            let response = encode_resp_bulk_string(key);
+                            if let Err(e) = socket.write_all(response.as_bytes()).await {
+                                eprintln!("GET: Failed to write to client: {}", e);
+                            }
+                        }
+                        if (socket.write_all("$-1\r\n".as_bytes()).await).is_err() {
+                            eprintln!("GET: Null bulk string");
+                        }
+                        break;
                     }
                     _ => {
                         eprintln!("Failed to write to client.");
