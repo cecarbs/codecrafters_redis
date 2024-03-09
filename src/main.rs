@@ -1,9 +1,8 @@
 // Uncomment this block to pass the first stage
-use std::{
-    error::Error,
-    io::{Read, Write},
-};
+use std::error::Error;
 
+use bytes::{BufMut, Bytes, BytesMut};
+use redis_starter_rust::handle_connection;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, BufStream},
     net::{TcpListener, TcpStream},
@@ -26,34 +25,3 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 }
-
-async fn handle_connection(mut socket: TcpStream) {
-    let mut buf = [0u8; 512 * 1024 * 1024];
-
-    loop {
-        match socket.read(&mut buf).await {
-            Ok(bytes_read) => {
-                if bytes_read == 0 {
-                    println!("Connection closed by client");
-                    break;
-                }
-
-                let request = String::from_utf8_lossy(&buf[..bytes_read]);
-                println!("Received request: {}", request);
-
-                let response = "+PONG\r\n";
-
-                if let Err(e) = socket.write_all(response.as_bytes()).await {
-                    eprintln!("Failed to write to client: {}", e);
-                    break;
-                }
-            }
-            Err(e) => {
-                eprintln!("Error reading from client: {}", e);
-                break;
-            }
-        }
-    }
-}
-
-fn decode_resp_bulk_string() {}
