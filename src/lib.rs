@@ -46,8 +46,8 @@ pub async fn handle_connection(mut socket: TcpStream) {
                         println!("Inserted into hashmap: {:?}", hash_map);
                         if let Err(e) = socket.write_all("+OK\r\n".as_bytes()).await {
                             eprintln!("SET: Failed to write to client: {}", e);
+                            break;
                         }
-                        break;
                     }
                     "get" => {
                         if let Some(key) = hash_map.get(&decoded_str[1]) {
@@ -55,11 +55,12 @@ pub async fn handle_connection(mut socket: TcpStream) {
                             if let Err(e) = socket.write_all(response.as_bytes()).await {
                                 eprintln!("GET: Failed to write to client: {}", e);
                             }
+                            break;
                         }
                         if (socket.write_all("$-1\r\n".as_bytes()).await).is_err() {
                             eprintln!("GET: Null bulk string");
+                            break;
                         }
-                        break;
                     }
                     _ => {
                         eprintln!("Failed to write to client.");
