@@ -87,6 +87,14 @@ fn get_command_and_arguments(input: String) -> Vec<String> {
 }
 
 fn encode_resp_bulk_string(input: &str) -> String {
-    let response = format!("{}{}{}", String::from("\r\n"), input, String::from("\r\n"));
+    let length = input.len().to_string();
+    let response = format!(
+        "{}{}{}{}{}",
+        String::from("$"),
+        length,
+        String::from("\r\n"),
+        input,
+        String::from("\r\n")
+    );
     response
 }
