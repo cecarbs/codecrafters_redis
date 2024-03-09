@@ -5,7 +5,8 @@ use tokio::{
 };
 
 pub async fn handle_connection(mut socket: TcpStream) {
-    let mut buf = BytesMut::with_capacity(1024);
+    // let mut buf = BytesMut::with_capacity(1024);
+    let mut buf = [0; 1024];
 
     loop {
         match socket.read(&mut buf).await {
@@ -21,6 +22,7 @@ pub async fn handle_connection(mut socket: TcpStream) {
                 let decoded_str: Vec<String> =
                     decode_resp_bulk_string(request.to_string()).unwrap();
                 let command: &String = &decoded_str[0];
+                println!("Decoded string: {:?}", decoded_str);
 
                 match command.as_str() {
                     "echo" => {

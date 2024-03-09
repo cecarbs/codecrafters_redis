@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Ok((socket, _)) => {
                 println!("Established connection with client.");
 
-                tokio::spawn(handle_connection(socket)).await.unwrap();
+                tokio::spawn(handle_connection(socket));
             }
             Err(e) => println!("Failed to establish connection with client: {:?}", e),
         }
