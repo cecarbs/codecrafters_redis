@@ -17,6 +17,11 @@ impl<T> TimedValue<T> {
             let ttl = ttl.unwrap();
             Some(Instant::now() + ttl)
         };
+
+        if duration.is_some() {
+            println!("Duration is: {:?}", duration.unwrap());
+        }
+
         Self {
             value,
             expiration: duration,
@@ -25,6 +30,12 @@ impl<T> TimedValue<T> {
 
     fn is_expired(&self) -> bool {
         if self.expiration.is_some() {
+            let expiration = self.expiration.unwrap();
+            println!(
+                "Expiration is: {:?} and current time is: {:?}",
+                expiration,
+                Instant::now()
+            );
             self.expiration.unwrap() < Instant::now()
         } else {
             false
