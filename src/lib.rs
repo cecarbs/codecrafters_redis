@@ -59,7 +59,7 @@ pub async fn handle_connection(mut socket: TcpStream) {
                         }
                         5 => {
                             // TODO: only works for 'px' implement other variation(s)
-                            let milliseconds: u64 = decoded_str[3].to_owned().parse().unwrap();
+                            let milliseconds: u64 = decoded_str[4].to_owned().parse().unwrap();
                             let ttl: Duration = Duration::from_millis(milliseconds);
                             timed_hashmap.insert(
                                 decoded_str[1].to_owned(),
