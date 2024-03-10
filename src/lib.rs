@@ -60,13 +60,17 @@ pub async fn handle_connection(mut socket: TcpStream) {
                             // TODO: only works for 'px' implement other variation(s)
                             let milliseconds: u64 = decoded_str[4].to_owned().parse().unwrap();
                             let ttl: Duration = Duration::from_millis(milliseconds);
+
                             println!("Time to live is: {:?}", ttl);
+
                             timed_hashmap.insert(
                                 decoded_str[1].to_owned(),
                                 decoded_str[2].to_owned(),
                                 Some(ttl),
                             );
+
                             println!("Inserted into hashmap: {:?}", timed_hashmap);
+
                             if let Err(e) = socket.write_all("+OK\r\n".as_bytes()).await {
                                 eprintln!("SET: Failed to write to client: {}", e);
                                 break;
@@ -78,13 +82,20 @@ pub async fn handle_connection(mut socket: TcpStream) {
                     },
                     "get" => {
                         println!("Hashmap before clean up: {:?}", timed_hashmap);
+
                         timed_hashmap.remove_expired_entries();
+
                         println!("Hashmap after clean up: {:?}", timed_hashmap);
+
                         println!("Entering into 'get'...");
+
                         if let Some(key) = timed_hashmap.get(&decoded_str[1]) {
                             println!("Hashmap: {:?}", timed_hashmap);
+
                             let response = encode_resp_bulk_string(key);
+
                             println!("Attempting to send response: {:?}", response);
+
                             if let Err(e) = socket.write_all(response.as_bytes()).await {
                                 eprintln!("GET: Failed to write to client: {}", e);
                                 break;
