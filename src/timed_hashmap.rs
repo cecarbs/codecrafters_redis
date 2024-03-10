@@ -36,7 +36,7 @@ impl<T> TimedValue<T> {
                 expiration,
                 Instant::now()
             );
-            self.expiration.unwrap() < Instant::now()
+            self.expiration.unwrap() > Instant::now()
         } else {
             false
         }
