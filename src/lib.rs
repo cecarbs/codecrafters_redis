@@ -84,10 +84,11 @@ pub async fn handle_connection(mut socket: TcpStream) {
                                 eprintln!("GET: Failed to write to client: {}", e);
                             }
                             break;
-                        }
-                        if (socket.write_all("$-1\r\n".as_bytes()).await).is_err() {
-                            eprintln!("GET: Null bulk string");
-                            break;
+                        } else {
+                            if let Err(e) = socket.write_all("$-1\r\n".as_bytes()).await {
+                                eprintln!("Null bulk string.");
+                                break;
+                            }
                         }
                     }
                     _ => {
