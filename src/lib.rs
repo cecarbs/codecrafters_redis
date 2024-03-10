@@ -45,7 +45,6 @@ pub async fn handle_connection(mut socket: TcpStream) {
                     }
                     "set" => match decoded_str.len() {
                         3 => {
-                            // hash_map.insert(decoded_str[1].to_owned(), decoded_str[2].to_owned());
                             timed_hashmap.insert(
                                 decoded_str[1].to_owned(),
                                 decoded_str[2].to_owned(),
@@ -77,8 +76,10 @@ pub async fn handle_connection(mut socket: TcpStream) {
                         }
                     },
                     "get" => {
+                        println!("Entering into 'get'...");
                         if let Some(key) = timed_hashmap.get(&decoded_str[1]) {
                             let response = encode_resp_bulk_string(key);
+                            println!("Attempting to send response: {:?}", response);
                             if let Err(e) = socket.write_all(response.as_bytes()).await {
                                 eprintln!("GET: Failed to write to client: {}", e);
                             }
