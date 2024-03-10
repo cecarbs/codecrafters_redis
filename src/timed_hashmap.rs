@@ -11,12 +11,11 @@ struct TimedValue<T> {
 
 impl<T> TimedValue<T> {
     fn add(value: T, ttl: Option<Duration>) -> Self {
-        let mut duration: Option<Instant>;
-        if ttl.is_none() {
-            duration = None;
+        let duration = if ttl.is_none() {
+            None
         } else {
-            duration = Some(Instant::now() + ttl.unwrap());
-        }
+            Some(Instant::now() + ttl.unwrap())
+        };
         Self {
             value,
             expiration: duration,

@@ -76,8 +76,12 @@ pub async fn handle_connection(mut socket: TcpStream) {
                         }
                     },
                     "get" => {
+                        println!("Hashmap before clean up: {:?}", timed_hashmap);
+                        timed_hashmap.remove_expired_entries();
+                        println!("Hashmap after clean up: {:?}", timed_hashmap);
                         println!("Entering into 'get'...");
                         if let Some(key) = timed_hashmap.get(&decoded_str[1]) {
+                            println!("Hashmap: {:?}", timed_hashmap);
                             let response = encode_resp_bulk_string(key);
                             println!("Attempting to send response: {:?}", response);
                             if let Err(e) = socket.write_all(response.as_bytes()).await {
