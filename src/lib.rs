@@ -1,16 +1,18 @@
-use std::collections::HashMap;
+mod timed_hashmap;
+use std::{collections::HashMap, time::Duration};
 
-use bytes::BytesMut;
+use timed_hashmap::TimedHashMap;
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt, BufStream},
-    net::{TcpListener, TcpStream},
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
 };
 
 pub async fn handle_connection(mut socket: TcpStream) {
     // let mut buf = BytesMut::with_capacity(1024);
     let mut buf = [0; 1024];
+    // let mut hash_map: HashMap<String, String> = HashMap::new();
+    let mut timed_hashmap: TimedHashMap<String, String> = TimedHashMap::new();
 
-    let mut hash_map: HashMap<String, String> = HashMap::new();
     loop {
         match socket.read(&mut buf).await {
             Ok(bytes_read) => {
@@ -41,16 +43,41 @@ pub async fn handle_connection(mut socket: TcpStream) {
                             break;
                         }
                     }
-                    "set" => {
-                        hash_map.insert(decoded_str[1].to_owned(), decoded_str[2].to_owned());
-                        println!("Inserted into hashmap: {:?}", hash_map);
-                        if let Err(e) = socket.write_all("+OK\r\n".as_bytes()).await {
-                            eprintln!("SET: Failed to write to client: {}", e);
-                            break;
+                    "set" => match decoded_str.len() {
+                        3 => {
+                            // hash_map.insert(decoded_str[1].to_owned(), decoded_str[2].to_owned());
+                            timed_hashmap.insert(
+                                decoded_str[1].to_owned(),
+                                decoded_str[2].to_owned(),
+                                None,
+                            );
+                            println!("Inserted into hashmap: {:?}", timed_hashmap);
+                            if let Err(e) = socket.write_all("+OK\r\n".as_bytes()).await {
+                                eprintln!("SET: Failed to write to client: {}", e);
+                                break;
+                            }
                         }
-                    }
+                        5 => {
+                            // TODO: only works for 'px' implement other variation(s)
+                            let milliseconds: u64 = decoded_str[3].to_owned().parse().unwrap();
+                            let ttl: Duration = Duration::from_millis(milliseconds);
+                            timed_hashmap.insert(
+                                decoded_str[1].to_owned(),
+                                decoded_str[2].to_owned(),
+                                Some(ttl),
+                            );
+                            println!("Inserted into hashmap: {:?}", timed_hashmap);
+                            if let Err(e) = socket.write_all("+OK\r\n".as_bytes()).await {
+                                eprintln!("SET: Failed to write to client: {}", e);
+                                break;
+                            }
+                        }
+                        _ => {
+                            println!("Unable to insert into either hashmaps.");
+                        }
+                    },
                     "get" => {
-                        if let Some(key) = hash_map.get(&decoded_str[1]) {
+                        if let Some(key) = timed_hashmap.get(&decoded_str[1]) {
                             let response = encode_resp_bulk_string(key);
                             if let Err(e) = socket.write_all(response.as_bytes()).await {
                                 eprintln!("GET: Failed to write to client: {}", e);

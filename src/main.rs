@@ -1,12 +1,7 @@
-// Uncomment this block to pass the first stage
 use std::error::Error;
 
-use bytes::{BufMut, Bytes, BytesMut};
 use redis_starter_rust::handle_connection;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt, BufStream},
-    net::{TcpListener, TcpStream},
-};
+use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
