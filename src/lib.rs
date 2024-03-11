@@ -1,5 +1,5 @@
 mod timed_hashmap;
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use timed_hashmap::TimedHashMap;
 use tokio::{
@@ -10,7 +10,6 @@ use tokio::{
 pub async fn handle_connection(mut socket: TcpStream) {
     // let mut buf = BytesMut::with_capacity(1024);
     let mut buf = [0; 1024];
-    // let mut hash_map: HashMap<String, String> = HashMap::new();
     let mut timed_hashmap: TimedHashMap<String, String> = TimedHashMap::new();
 
     loop {
