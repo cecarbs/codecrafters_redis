@@ -100,7 +100,7 @@ pub async fn handle_connection(mut socket: TcpStream) {
                                 break;
                             }
                         } else {
-                            if let Err(e) = socket.write_all("$-1\r\n".as_bytes()).await {
+                            if let Err(_) = socket.write_all("$-1\r\n".as_bytes()).await {
                                 eprintln!("Null bulk string.");
                                 break;
                             }

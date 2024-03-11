@@ -9,14 +9,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut port: String = String::from("127.0.0.1:");
     if args.len() > 2 && args[1] == "--port" {
-        port.push_str(args[1].as_str());
+        port.push_str(args[2].as_str());
     } else {
         port.push_str("6379");
     }
 
     println!("Logs from your program will appear here!");
 
-    let listener = TcpListener::bind(port).await?;
+    let listener = TcpListener::bind(&port).await?;
+    println!("Server started on port: {}", port);
 
     loop {
         match listener.accept().await {
