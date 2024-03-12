@@ -106,6 +106,15 @@ pub async fn handle_connection(mut socket: TcpStream) {
                             }
                         }
                     }
+                    "info" => {
+                        println!("Entering info command.");
+
+                        let response = encode_resp_bulk_string("role:master");
+                        if let Err(e) = socket.write_all(response.as_bytes()).await {
+                            eprintln!("INFO: Failed to write to client: {}", e);
+                            break;
+                        }
+                    }
                     _ => {
                         eprintln!("Failed to write to client.");
                         break;
