@@ -13,6 +13,7 @@ pub struct HelperCLI {
 
 impl HelperCLI {
     pub fn new(args: Vec<String>) -> Self {
+        print!("Command line arguments are: {:?}", args);
         let mut port: String = String::from("127.0.0.1:");
         let mut master_server: String = String::new();
         let role: Role;
