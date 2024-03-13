@@ -1,13 +1,15 @@
+mod cli;
 mod timed_hashmap;
 use std::time::Duration;
 
+use cli::CLI;
 use timed_hashmap::TimedHashMap;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
 };
 
-pub async fn handle_connection(mut socket: TcpStream) {
+pub async fn handle_connection(mut socket: TcpStream, cli_args: cli::CLI) {
     // let mut buf = BytesMut::with_capacity(1024);
     let mut buf = [0; 1024];
     let mut timed_hashmap: TimedHashMap<String, String> = TimedHashMap::new();
@@ -109,7 +111,12 @@ pub async fn handle_connection(mut socket: TcpStream) {
                     "info" => {
                         println!("Entering info command.");
 
-                        let response = encode_resp_bulk_string("role:master");
+                        let role = match &cli_args.role {
+                            cli::Role::Master(master_role) => master_role,
+                            cli::Role::Slave(slave_role) => slave_role,
+                        };
+                        let role = format!("role:{}", role);
+                        let response = encode_resp_bulk_string(role.as_str());
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("INFO: Failed to write to client: {}", e);
                             break;

@@ -6,18 +6,13 @@ use tokio::net::TcpListener;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
-
-    let mut port: String = String::from("127.0.0.1:");
-    if args.len() > 2 && args[1] == "--port" {
-        port.push_str(args[2].as_str());
-    } else {
-        port.push_str("6379");
-    }
+    let cli_args = CLI::new(args);
 
     println!("Logs from your program will appear here!");
 
-    let listener = TcpListener::bind(&port).await?;
-    println!("Server started on port: {}", port);
+    let listener = TcpListener::bind(&cli_args.port).await?;
+
+    println!("Server started on port: {}", cli_args.port);
 
     loop {
         match listener.accept().await {
