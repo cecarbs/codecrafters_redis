@@ -115,8 +115,8 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                         //     helper_cli::Role::Master(master_role) => master_role,
                         //     helper_cli::Role::Slave(slave_role) => slave_role,
                         // };
-                        // let role = format!("role:{}", role);
-                        let response = encode_resp_bulk_string(role.as_str());
+                        let role_as_key_value = format!("role:{}", role);
+                        let response = encode_resp_bulk_string(role_as_key_value.as_str());
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("INFO: Failed to write to client: {}", e);
                             break;
