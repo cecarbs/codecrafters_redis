@@ -1,5 +1,7 @@
+mod cli;
 use std::{env, error::Error};
 
+use cli::Command_Line_Tool;
 use redis_starter_rust::handle_connection;
 use tokio::net::TcpListener;
 
@@ -19,7 +21,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Ok((socket, _)) => {
                 println!("Established connection with client.");
 
-                tokio::spawn(handle_connection(socket));
+                tokio::spawn(handle_connection(socket, cli_args));
             }
             Err(e) => println!("Failed to establish connection with client: {:?}", e),
         }

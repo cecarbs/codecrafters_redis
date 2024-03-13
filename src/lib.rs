@@ -2,14 +2,14 @@ mod cli;
 mod timed_hashmap;
 use std::time::Duration;
 
-use cli::CLI;
+use cli::Command_Line_Tool;
 use timed_hashmap::TimedHashMap;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
 };
 
-pub async fn handle_connection(mut socket: TcpStream, cli_args: cli::CLI) {
+pub async fn handle_connection(mut socket: TcpStream, cli_args: cli::Command_Line_Tool) {
     // let mut buf = BytesMut::with_capacity(1024);
     let mut buf = [0; 1024];
     let mut timed_hashmap: TimedHashMap<String, String> = TimedHashMap::new();
