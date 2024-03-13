@@ -5,13 +5,13 @@ pub enum Role {
 }
 
 #[derive(Debug)]
-pub struct CommandLineArgs {
+pub struct HelperCLI {
     pub port: String,
     pub master_server: String,
     pub role: Role,
 }
 
-impl CommandLineArgs {
+impl HelperCLI {
     pub fn new(args: Vec<String>) -> Self {
         let mut port: String = String::from("127.0.0.1:");
         let mut master_server: String = String::new();
