@@ -1,14 +1,14 @@
 mod cli;
 use std::{env, error::Error};
 
-use cli::Command_Line_Tool;
+use cli::CommandLineArgs;
 use redis_starter_rust::handle_connection;
 use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
-    let cli_args = CLI::new(args);
+    let cli_args: cli::CommandLineArgs = cli::CommandLineArgs::new(args);
 
     println!("Logs from your program will appear here!");
 
