@@ -112,8 +112,8 @@ pub async fn handle_connection(mut socket: TcpStream, cli_args: HelperCLI) {
                         println!("Entering info command.");
 
                         let role = match &cli_args.role {
-                            cli::Role::Master(master_role) => master_role,
-                            cli::Role::Slave(slave_role) => slave_role,
+                            helper_cli::Role::Master(master_role) => master_role,
+                            helper_cli::Role::Slave(slave_role) => slave_role,
                         };
                         let role = format!("role:{}", role);
                         let response = encode_resp_bulk_string(role.as_str());
