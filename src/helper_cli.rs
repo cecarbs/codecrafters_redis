@@ -23,14 +23,14 @@ impl HelperCLI {
             }
             None => port.push_str("6379"),
         }
-        match args.get(3) {
+        match args.get(2) {
             Some(_replica_of_flag) => {
                 let master_host = args.get(3).to_owned().unwrap();
                 let master_port = args.get(4).to_owned().unwrap();
                 master_server = format!("{}:{}", master_host, master_port);
-                role = Role::Master(String::from("master"));
+                role = Role::Slave(String::from("slave"));
             }
-            None => role = Role::Slave(String::from("slave")),
+            None => role = Role::Master(String::from("master")),
         }
         Self {
             port,
