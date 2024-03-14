@@ -103,22 +103,28 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                         println!("Entering info command.");
 
                         let role_as_key_value = format!("role:{}", role);
-                        let response = encode_resp_bulk_string(role_as_key_value.as_str());
-                        if let Err(e) = socket.write_all(response.as_bytes()).await {
-                            eprintln!("INFO: Failed to write to client: {}", e);
-                            break;
-                        }
-                        let master_replid = format!(
+                        let encoded_role = encode_resp_bulk_string(role_as_key_value.as_str());
+                        // if let Err(e) = socket.write_all(response.as_bytes()).await {
+                        //     eprintln!("INFO: Failed to write to client: {}", e);
+                        //     break;
+                        // }
+                        let encoded_master_replid = format!(
                             "master_replid:{}",
                             "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
                         );
-                        let response = encode_resp_bulk_string(master_replid.as_str());
-                        if let Err(e) = socket.write_all(response.as_bytes()).await {
-                            eprintln!("INFO: Failed to write to client: {}", e);
-                            break;
-                        }
-                        let master_repl_offset = format!("master_repl_offset:0");
-                        let response = encode_resp_bulk_string(master_repl_offset.as_str());
+                        // let response = encode_resp_bulk_string(master_replid.as_str());
+                        // if let Err(e) = socket.write_all(response.as_bytes()).await {
+                        //     eprintln!("INFO: Failed to write to client: {}", e);
+                        //     break;
+                        // }
+                        let encoded_master_repl_offset = format!("master_repl_offset:0");
+
+                        let response = format!(
+                            "{}{}{}",
+                            encoded_role, encoded_master_replid, encoded_master_repl_offset
+                        );
+
+                        let response = encode_resp_bulk_string(response.as_str());
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("INFO: Failed to write to client: {}", e);
                             break;
