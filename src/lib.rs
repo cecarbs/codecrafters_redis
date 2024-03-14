@@ -195,8 +195,7 @@ fn encode_resp_bulk_string(input: &str) -> String {
     let length = input.len().to_string();
     let response = format!(
         "{}{}{}{}{}",
-        // String::from("$"),
-        insert_correct_protocol("bulk_strings").unwrap(),
+        String::from("$"),
         length,
         String::from("\r\n"),
         input,
@@ -206,16 +205,9 @@ fn encode_resp_bulk_string(input: &str) -> String {
 }
 
 fn encode_resp_array(input: &str) -> String {
-    let length = input.len().to_string();
-    let response = format!(
-        "{}{}{}{}{}",
-        // String::from("*"),
-        insert_correct_protocol("arrays").unwrap(),
-        length,
-        String::from("\r\n"),
-        input,
-        String::from("\r\n")
-    );
+    // TODO: modify this to to get the length of the array
+    let resp_bulk_string = encode_resp_bulk_string(input);
+    let response = format!("{}{}", String::from("*1\r\n"), resp_bulk_string);
     response
 }
 
