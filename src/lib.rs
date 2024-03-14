@@ -39,6 +39,22 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                         }
                     }
                     "ping" => {
+                        if role == "master" {
+                            if let Err(e) =
+                                socket.write_all(encode_resp_array("pong").as_bytes()).await
+                            {
+                                eprintln!("PING: Failed to write to client: {}", e);
+                                break;
+                            }
+                        }
+                        if role == "slave" {
+                            if let Err(e) =
+                                socket.write_all(encode_resp_array("pong").as_bytes()).await
+                            {
+                                eprintln!("PING: Failed to write to client: {}", e);
+                                break;
+                            }
+                        }
                         if let Err(e) = socket.write_all("+PONG\r\n".as_bytes()).await {
                             eprintln!("PING: Failed to write to client: {}", e);
                             break;
@@ -180,6 +196,19 @@ fn encode_resp_bulk_string(input: &str) -> String {
     let response = format!(
         "{}{}{}{}{}",
         String::from("$"),
+        length,
+        String::from("\r\n"),
+        input,
+        String::from("\r\n")
+    );
+    response
+}
+
+fn encode_resp_array(input: &str) -> String {
+    let length = input.len().to_string();
+    let response = format!(
+        "{}{}{}{}{}",
+        String::from("*"),
         length,
         String::from("\r\n"),
         input,
