@@ -41,7 +41,7 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                     "ping" => {
                         if role == "master" {
                             if let Err(e) = socket
-                                .write_all(encode_resp_bulk_string("ping").as_bytes())
+                                .write_all(encode_resp_bulk_string("PONG").as_bytes())
                                 .await
                             {
                                 eprintln!("PING: Failed to write to client: {}", e);
@@ -50,7 +50,7 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                         }
                         if role == "slave" {
                             if let Err(e) =
-                                socket.write_all(encode_resp_array("ping").as_bytes()).await
+                                socket.write_all(encode_resp_array("PONG").as_bytes()).await
                             {
                                 eprintln!("PING: Failed to write to client: {}", e);
                                 break;
