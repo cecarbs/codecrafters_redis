@@ -41,7 +41,7 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                     "ping" => {
                         if role == "master" {
                             if let Err(e) =
-                                socket.write_all(encode_resp_array("pong").as_bytes()).await
+                                socket.write_all(encode_resp_array("ping").as_bytes()).await
                             {
                                 eprintln!("PING: Failed to write to client: {}", e);
                                 break;
@@ -49,16 +49,16 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                         }
                         if role == "slave" {
                             if let Err(e) =
-                                socket.write_all(encode_resp_array("pong").as_bytes()).await
+                                socket.write_all(encode_resp_array("ping").as_bytes()).await
                             {
                                 eprintln!("PING: Failed to write to client: {}", e);
                                 break;
                             }
                         }
-                        if let Err(e) = socket.write_all("+PONG\r\n".as_bytes()).await {
-                            eprintln!("PING: Failed to write to client: {}", e);
-                            break;
-                        }
+                        // if let Err(e) = socket.write_all("+PONG\r\n".as_bytes()).await {
+                        //     eprintln!("PING: Failed to write to client: {}", e);
+                        //     break;
+                        // }
                     }
                     "set" => match decoded_str.len() {
                         3 => {
@@ -195,7 +195,8 @@ fn encode_resp_bulk_string(input: &str) -> String {
     let length = input.len().to_string();
     let response = format!(
         "{}{}{}{}{}",
-        String::from("$"),
+        // String::from("$"),
+        insert_correct_protocol("bulk_strings").unwrap(),
         length,
         String::from("\r\n"),
         input,
@@ -208,11 +209,24 @@ fn encode_resp_array(input: &str) -> String {
     let length = input.len().to_string();
     let response = format!(
         "{}{}{}{}{}",
-        String::from("*"),
+        // String::from("*"),
+        insert_correct_protocol("arrays").unwrap(),
         length,
         String::from("\r\n"),
         input,
         String::from("\r\n")
     );
     response
+}
+
+// TODO: create enum
+fn insert_correct_protocol(input: &str) -> Result<String, &'static str> {
+    match input {
+        "simple_strings" => Ok("+".to_string()),
+        "errors" => Ok("-".to_string()),
+        "integers" => Ok(":".to_string()),
+        "bulk_strings" => Ok("$".to_string()),
+        "arrays" => Ok("*".to_string()),
+        _ => Err("Unable to determine correct Redis protocol."),
+    }
 }
