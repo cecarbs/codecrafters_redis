@@ -78,7 +78,7 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                         }
                     },
                     "get" => {
-                        println("Entering get command.");
+                        println!("Entering get command.");
                         timed_hashmap.remove_expired_entries();
 
                         if let Some(key) = timed_hashmap.get(&decoded_str[1]) {
