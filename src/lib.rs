@@ -102,25 +102,18 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                     "info" => {
                         println!("Entering info command.");
 
-                        let role_as_key_value = format!("role:{}", role);
-                        let encoded_role = encode_resp_bulk_string(role_as_key_value.as_str());
-                        // if let Err(e) = socket.write_all(response.as_bytes()).await {
-                        //     eprintln!("INFO: Failed to write to client: {}", e);
-                        //     break;
-                        // }
-                        let master_replid = format!(
-                            "master_replid:{}",
-                            "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
+                        let encoded_role =
+                            encode_resp_bulk_string(format!("role:{}", role).as_str());
+                        let encoded_master_replid = encode_resp_bulk_string(
+                            format!(
+                                "master_replid:{}",
+                                "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
+                            )
+                            .as_str(),
                         );
-                        let encoded_master_replid = encode_resp_bulk_string(master_replid.as_str());
-                        // if let Err(e) = socket.write_all(response.as_bytes()).await {
-                        //     eprintln!("INFO: Failed to write to client: {}", e);
-                        //     break;
-                        // }
-                        let master_repl_offset = format!("master_repl_offset:0");
 
                         let encoded_master_repl_offset =
-                            encode_resp_bulk_string(master_repl_offset.as_str());
+                            encode_resp_bulk_string("master_repl_offset:0");
 
                         let response = format!(
                             "{}{}{}",
