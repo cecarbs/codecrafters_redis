@@ -62,15 +62,11 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                             let milliseconds: u64 = decoded_str[4].to_owned().parse().unwrap();
                             let ttl: Duration = Duration::from_millis(milliseconds);
 
-                            println!("Time to live is: {:?}", ttl);
-
                             timed_hashmap.insert(
                                 decoded_str[1].to_owned(),
                                 decoded_str[2].to_owned(),
                                 Some(ttl),
                             );
-
-                            println!("Inserted into hashmap: {:?}", timed_hashmap);
 
                             if let Err(e) = socket.write_all("+OK\r\n".as_bytes()).await {
                                 eprintln!("SET: Failed to write to client: {}", e);
@@ -82,13 +78,8 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                         }
                     },
                     "get" => {
-                        println!("Hashmap before clean up: {:?}", timed_hashmap);
-
+                        println("Entering get command.");
                         timed_hashmap.remove_expired_entries();
-
-                        println!("Hashmap after clean up: {:?}", timed_hashmap);
-
-                        println!("Entering into 'get'...");
 
                         if let Some(key) = timed_hashmap.get(&decoded_str[1]) {
                             println!("Hashmap: {:?}", timed_hashmap);
@@ -111,12 +102,23 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                     "info" => {
                         println!("Entering info command.");
 
-                        // let role = match &role {
-                        //     helper_cli::Role::Master(master_role) => master_role,
-                        //     helper_cli::Role::Slave(slave_role) => slave_role,
-                        // };
                         let role_as_key_value = format!("role:{}", role);
                         let response = encode_resp_bulk_string(role_as_key_value.as_str());
+                        if let Err(e) = socket.write_all(response.as_bytes()).await {
+                            eprintln!("INFO: Failed to write to client: {}", e);
+                            break;
+                        }
+                        let master_replid = format!(
+                            "master_replid:{}",
+                            "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
+                        );
+                        let response = encode_resp_bulk_string(master_replid.as_str());
+                        if let Err(e) = socket.write_all(response.as_bytes()).await {
+                            eprintln!("INFO: Failed to write to client: {}", e);
+                            break;
+                        }
+                        let master_repl_offset = format!("master_repl_offset:0");
+                        let response = encode_resp_bulk_string(master_repl_offset.as_str());
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("INFO: Failed to write to client: {}", e);
                             break;
