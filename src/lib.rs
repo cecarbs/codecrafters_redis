@@ -124,6 +124,7 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                             encoded_role, encoded_master_replid, encoded_master_repl_offset
                         );
 
+                        println!("Response is: response: {}", response);
                         let response = encode_resp_bulk_string(response.as_str());
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("INFO: Failed to write to client: {}", e);
