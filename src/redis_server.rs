@@ -1,16 +1,56 @@
-mod helper_cli;
 mod timed_hashmap;
+
 use std::time::Duration;
 
-use helper_cli::{HelperCLI, Role};
-use timed_hashmap::TimedHashMap;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 
-pub async fn handle_connection(mut socket: TcpStream, role: String) {
-    // let mut buf = BytesMut::with_capacity(1024);
+use self::timed_hashmap::TimedHashMap;
+
+#[warn(dead_code)]
+enum Command {
+    Echo,
+    Ping,
+    Set,
+    Get,
+    Info,
+    Unknown,
+}
+
+pub async fn start_master(port: &str) {
+    let listener: TcpListener = TcpListener::bind(port).await.unwrap();
+    println!("Master started on port: {}", port);
+
+    loop {
+        match listener.accept().await {
+            Ok((socket, _)) => {
+                tokio::spawn(async move {
+                    handle_connection(socket, "master").await;
+                });
+            }
+            Err(_) => eprintln!("Failed to start master instance."),
+        }
+    }
+}
+
+pub async fn start_replica(port: &str) {
+    let listener = TcpListener::bind(port).await.unwrap();
+    println!("Replica started on port: {}", port);
+    // TODO: connect to master if needed
+    // TcpStream::connect()
+    loop {
+        match listener.accept().await {
+            Ok((socket, _)) => {
+                tokio::spawn(async move {
+                    handle_connection(socket, "slave").await;
+                });
+            }
+            Err(_) => eprintln!("Failed to start replica instance."),
+        }
+    }
+}
+
+async fn handle_connection(mut socket: TcpStream, role: &str) {
     let mut buf = [0; 1024];
     let mut timed_hashmap: TimedHashMap<String, String> = TimedHashMap::new();
 
@@ -18,27 +58,33 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
         match socket.read(&mut buf).await {
             Ok(bytes_read) => {
                 if bytes_read == 0 {
-                    println!("Connection closed by client");
-                    break;
+                    println!("Connection closed by client.")
                 }
 
-                let request = String::from_utf8_lossy(&buf[..bytes_read]);
-                println!("Received request: {}", request);
+                // let decoded_string =
+                //     parse_command_from_request(String::from_utf8(&buf[..bytes_read]).unwrap());
 
+                let request = String::from_utf8_lossy(&buf[..bytes_read]);
                 let decoded_str: Vec<String> =
                     decode_resp_bulk_string(request.to_string()).unwrap();
-                let command: &String = &decoded_str[0];
-                println!("Decoded string: {:?}", decoded_str);
+                let command: Command = match decoded_str[0].as_str() {
+                    "echo" => Command::Echo,
+                    "ping" => Command::Ping,
+                    "set" => Command::Set,
+                    "get" => Command::Get,
+                    "info" => Command::Info,
+                    _ => Command::Unknown,
+                };
 
-                match command.as_str() {
-                    "echo" => {
+                match command {
+                    Command::Echo => {
                         let response = encode_resp_bulk_string(&decoded_str[1]);
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("ECHO: Failed to write to client: {}", e);
                             break;
                         }
                     }
-                    "ping" => {
+                    Command::Ping => {
                         if role == "master" {
                             let response = encode_resp_bulk_string("PONG");
                             if let Err(e) = socket.write_all(response.as_bytes()).await {
@@ -56,7 +102,7 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                             break;
                         }
                     }
-                    "set" => match decoded_str.len() {
+                    Command::Set => match decoded_str.len() {
                         3 => {
                             timed_hashmap.insert(
                                 decoded_str[1].to_owned(),
@@ -89,7 +135,7 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                             println!("Unable to insert into either hashmaps.");
                         }
                     },
-                    "get" => {
+                    Command::Get => {
                         println!("Entering get command.");
                         timed_hashmap.remove_expired_entries();
 
@@ -111,7 +157,7 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                             }
                         }
                     }
-                    "info" => {
+                    Command::Info => {
                         println!("Entering info command.");
 
                         let encoded_role =
@@ -139,8 +185,8 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
                             break;
                         }
                     }
-                    _ => {
-                        eprintln!("Failed to write to client.");
+                    Command::Unknown => {
+                        eprintln!("Failed to parse command: unknown command.");
                         break;
                     }
                 }
@@ -152,7 +198,15 @@ pub async fn handle_connection(mut socket: TcpStream, role: String) {
         }
     }
 }
-// TODO: Fix
+
+// TODO: might need to change this later for more complex commands
+fn parse_command_from_request(request: String) -> Vec<String> {
+    let decoded_str: Vec<String> = decode_resp_bulk_string(request.to_string()).unwrap();
+    let command: &String = &decoded_str[0];
+    println!("Received command: {}", command);
+    decoded_str
+}
+
 fn decode_resp_bulk_string(input: String) -> Option<Vec<String>> {
     if let Some(dollar_byte_idx) = input.find('$') {
         let bulk_string: Vec<String> =
