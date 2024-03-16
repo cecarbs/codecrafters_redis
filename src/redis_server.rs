@@ -228,14 +228,6 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
     }
 }
 
-// TODO: might need to change this later for more complex commands
-// fn parse_command_from_request(request: String) -> Vec<String> {
-//     let decoded_str: Vec<String> = decode_resp_bulk_string(request.to_string()).unwrap();
-//     let command: &String = &decoded_str[0];
-//     println!("Received command: {}", command);
-//     decoded_str
-// }
-
 fn decode_resp_bulk_string(input: String) -> Option<Vec<String>> {
     if let Some(dollar_byte_idx) = input.find('$') {
         let bulk_string: Vec<String> =
@@ -291,14 +283,3 @@ fn encode_resp_array(input: &[&str]) -> String {
     }
     response
 }
-
-// fn insert_correct_protocol(input: &str) -> Result<String, &'static str> {
-//     match input {
-//         "simple_strings" => Ok("+".to_string()),
-//         "errors" => Ok("-".to_string()),
-//         "integers" => Ok(":".to_string()),
-//         "bulk_strings" => Ok("$".to_string()),
-//         "arrays" => Ok("*".to_string()),
-//         _ => Err("Unable to determine correct Redis protocol."),
-//     }
-// }
