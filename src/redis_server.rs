@@ -33,11 +33,13 @@ pub async fn start_master(port: &str) {
     }
 }
 
-pub async fn start_replica(port: &str) {
+pub async fn start_replica(master_address: &str, port: &str) {
     let listener = TcpListener::bind(port).await.unwrap();
     println!("Replica started on port: {}", port);
     // TODO: connect to master if needed
-    // TcpStream::connect()
+    // TcpStream::connect()a
+    let master_stream = TcpStream::connect(master_address).await.unwrap();
+    send_ping_to_master(master_stream).await;
     loop {
         match listener.accept().await {
             Ok((socket, _)) => {
@@ -47,6 +49,13 @@ pub async fn start_replica(port: &str) {
             }
             Err(_) => eprintln!("Failed to start replica instance."),
         }
+    }
+}
+
+async fn send_ping_to_master(mut stream: TcpStream) {
+    let ping = encode_resp_array("PING");
+    if let Err(e) = stream.write_all(ping.as_bytes()).await {
+        eprintln!("Failed to send Ping to master with error: {:?}", e);
     }
 }
 

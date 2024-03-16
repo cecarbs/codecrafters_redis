@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if role.to_string() == "master" {
         start_master(&cli_args.port).await;
     } else {
-        start_replica(&cli_args.port).await;
+        start_replica(&cli_args.master_server, &cli_args.port).await;
     }
 
     Ok(())
