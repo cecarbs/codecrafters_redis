@@ -1,5 +1,7 @@
 mod timed_hashmap;
 
+use std::borrow::Cow;
+use std::fmt::Display;
 use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -15,6 +17,19 @@ enum Command {
     Get,
     Info,
     Unknown,
+}
+
+impl Display for Command {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Command::Echo => write!(f, "echo"),
+            Command::Ping => write!(f, "ping"),
+            Command::Set => write!(f, "set"),
+            Command::Get => write!(f, "get"),
+            Command::Info => write!(f, "info"),
+            Command::Unknown => write!(f, "unknown"),
+        }
+    }
 }
 
 pub async fn start_master(port: &str) {
@@ -73,7 +88,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                 // let decoded_string =
                 //     parse_command_from_request(String::from_utf8(&buf[..bytes_read]).unwrap());
 
-                let request = String::from_utf8_lossy(&buf[..bytes_read]);
+                let request: Cow<'_, str> = String::from_utf8_lossy(&buf[..bytes_read]);
                 let decoded_str: Vec<String> =
                     decode_resp_bulk_string(request.to_string()).unwrap();
                 let command: Command = match decoded_str[0].as_str() {
@@ -87,7 +102,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
 
                 match command {
                     Command::Echo => {
-                        let response = encode_resp_bulk_string(&decoded_str[1]);
+                        let response: String = encode_resp_bulk_string(&decoded_str[1]);
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("ECHO: Failed to write to client: {}", e);
                             break;
@@ -151,7 +166,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                         if let Some(key) = timed_hashmap.get(&decoded_str[1]) {
                             println!("Hashmap: {:?}", timed_hashmap);
 
-                            let response = encode_resp_bulk_string(key);
+                            let response: String = encode_resp_bulk_string(key);
 
                             println!("Attempting to send response: {:?}", response);
 
@@ -172,7 +187,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                     Command::Info => {
                         println!("Entering info command.");
 
-                        let encoded_role =
+                        let encoded_role: String =
                             encode_resp_bulk_string(format!("role:{}", role).as_str());
                         let encoded_master_replid = encode_resp_bulk_string(
                             format!(
@@ -182,7 +197,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                             .as_str(),
                         );
 
-                        let encoded_master_repl_offset =
+                        let encoded_master_repl_offset: String =
                             encode_resp_bulk_string("master_repl_offset:0");
 
                         let response = format!(
@@ -191,7 +206,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                         );
 
                         println!("Response is: response: {}", response);
-                        let response = encode_resp_bulk_string(response.as_str());
+                        let response: String = encode_resp_bulk_string(response.as_str());
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("INFO: Failed to write to client: {}", e);
                             break;
@@ -230,7 +245,7 @@ fn decode_resp_bulk_string(input: String) -> Option<Vec<String>> {
 }
 
 fn get_command_and_arguments(input: String) -> Vec<String> {
-    let mut ptr = 0;
+    let mut ptr: usize = 0;
     let mut commands: Vec<String> = Vec::new();
     let mut result: Vec<String> = Vec::new();
 
@@ -254,7 +269,7 @@ fn get_command_and_arguments(input: String) -> Vec<String> {
 }
 
 fn encode_resp_bulk_string(input: &str) -> String {
-    let length = input.len().to_string();
+    let length: String = input.len().to_string();
     let response = format!(
         "{}{}{}{}{}",
         String::from("$"),
@@ -268,8 +283,8 @@ fn encode_resp_bulk_string(input: &str) -> String {
 
 fn encode_resp_array(input: &str) -> String {
     // TODO: modify this to to get the length of the array
-    let resp_bulk_string = encode_resp_bulk_string(input);
-    let response = format!("{}{}", String::from("*1\r\n"), resp_bulk_string);
+    let resp_bulk_string: String = encode_resp_bulk_string(input);
+    let response: String = format!("{}{}", String::from("*1\r\n"), resp_bulk_string);
     response
 }
 
