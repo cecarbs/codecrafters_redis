@@ -18,6 +18,7 @@ enum Command {
     Set,
     Get,
     Info,
+    Replconf,
     Unknown,
 }
 
@@ -29,52 +30,11 @@ impl Display for Command {
             Command::Set => write!(f, "set"),
             Command::Get => write!(f, "get"),
             Command::Info => write!(f, "info"),
+            Command::Replconf => write!(f, "replconf"),
             Command::Unknown => write!(f, "unknown"),
         }
     }
 }
-
-// pub async fn start_master(port: &str) {
-//     let listener: TcpListener = TcpListener::bind(port).await.unwrap();
-//     println!("Master started on port: {}", port);
-//
-//     loop {
-//         match listener.accept().await {
-//             Ok((socket, _)) => {
-//                 tokio::spawn(async move {
-//                     handle_connection(socket, "master").await;
-//                 });
-//             }
-//             Err(_) => eprintln!("Failed to start master instance."),
-//         }
-//     }
-// }
-
-// pub async fn start_replica(master_address: &str, port: &str) {
-//     let listener = TcpListener::bind(port).await.unwrap();
-//     println!("Replica started on port: {}", port);
-//
-//     let master_stream = TcpStream::connect(master_address).await.unwrap();
-//     send_ping_to_master(master_stream).await;
-//
-//     loop {
-//         match listener.accept().await {
-//             Ok((socket, _)) => {
-//                 tokio::spawn(async move {
-//                     handle_connection(socket, "slave").await;
-//                 });
-//             }
-//             Err(_) => eprintln!("Failed to start replica instance."),
-//         }
-//     }
-// }
-//
-// async fn send_ping_to_master(mut stream: TcpStream) {
-//     let ping = encode_resp_array("PING");
-//     if let Err(e) = stream.write_all(ping.as_bytes()).await {
-//         eprintln!("Failed to send Ping to master with error: {:?}", e);
-//     }
-// }
 
 async fn handle_connection(mut socket: TcpStream, role: &str) {
     let mut buf = [0; 1024];
@@ -93,12 +53,13 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                 let request: Cow<'_, str> = String::from_utf8_lossy(&buf[..bytes_read]);
                 let decoded_str: Vec<String> =
                     decode_resp_bulk_string(request.to_string()).unwrap();
-                let command: Command = match decoded_str[0].as_str() {
+                let command: Command = match decoded_str[0].to_lowercase().as_str() {
                     "echo" => Command::Echo,
                     "ping" => Command::Ping,
                     "set" => Command::Set,
                     "get" => Command::Get,
                     "info" => Command::Info,
+                    "replconf" => Command::Replconf,
                     _ => Command::Unknown,
                 };
 
@@ -212,6 +173,12 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("INFO: Failed to write to client: {}", e);
                             break;
+                        }
+                    }
+                    Command::Replconf => {
+                        let response: String = encode_resp_bulk_string("OK");
+                        if let Err(e) = socket.write_all(response.as_bytes()).await {
+                            eprintln!("REPLCONF: Failed to write to client: {}", e);
                         }
                     }
                     Command::Unknown => {
