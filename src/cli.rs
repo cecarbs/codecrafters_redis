@@ -9,20 +9,20 @@ pub enum Role {
 impl Display for Role {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Role::Master(s) => write!(f, "master"),
-            Role::Slave(s) => write!(f, "slave"),
+            Role::Master(_) => write!(f, "master"),
+            Role::Slave(_) => write!(f, "slave"),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct CLI {
+pub struct Cli {
     pub port: String,
     pub master_server: String,
     pub role: Role,
 }
 
-impl CLI {
+impl Cli {
     pub fn new(args: Vec<String>) -> Self {
         print!("Command line arguments are: {:?}", args);
         let mut port: String = String::from("127.0.0.1:");

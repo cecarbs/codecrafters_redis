@@ -36,10 +36,10 @@ pub async fn start_master(port: &str) {
 pub async fn start_replica(master_address: &str, port: &str) {
     let listener = TcpListener::bind(port).await.unwrap();
     println!("Replica started on port: {}", port);
-    // TODO: connect to master if needed
-    // TcpStream::connect()a
+
     let master_stream = TcpStream::connect(master_address).await.unwrap();
     send_ping_to_master(master_stream).await;
+
     loop {
         match listener.accept().await {
             Ok((socket, _)) => {
@@ -160,9 +160,12 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                                 break;
                             }
                         } else {
-                            if let Err(_) = socket.write_all("$-1\r\n".as_bytes()).await {
-                                eprintln!("Null bulk string.");
-                                break;
+                            match socket.write_all("$-1\r\n".as_bytes()).await {
+                                Ok(_) => (),
+                                Err(_) => {
+                                    eprintln!("Null bulk string.");
+                                    break;
+                                }
                             }
                         }
                     }
@@ -209,12 +212,12 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
 }
 
 // TODO: might need to change this later for more complex commands
-fn parse_command_from_request(request: String) -> Vec<String> {
-    let decoded_str: Vec<String> = decode_resp_bulk_string(request.to_string()).unwrap();
-    let command: &String = &decoded_str[0];
-    println!("Received command: {}", command);
-    decoded_str
-}
+// fn parse_command_from_request(request: String) -> Vec<String> {
+//     let decoded_str: Vec<String> = decode_resp_bulk_string(request.to_string()).unwrap();
+//     let command: &String = &decoded_str[0];
+//     println!("Received command: {}", command);
+//     decoded_str
+// }
 
 fn decode_resp_bulk_string(input: String) -> Option<Vec<String>> {
     if let Some(dollar_byte_idx) = input.find('$') {
@@ -270,14 +273,13 @@ fn encode_resp_array(input: &str) -> String {
     response
 }
 
-// TODO: create enum
-fn insert_correct_protocol(input: &str) -> Result<String, &'static str> {
-    match input {
-        "simple_strings" => Ok("+".to_string()),
-        "errors" => Ok("-".to_string()),
-        "integers" => Ok(":".to_string()),
-        "bulk_strings" => Ok("$".to_string()),
-        "arrays" => Ok("*".to_string()),
-        _ => Err("Unable to determine correct Redis protocol."),
-    }
-}
+// fn insert_correct_protocol(input: &str) -> Result<String, &'static str> {
+//     match input {
+//         "simple_strings" => Ok("+".to_string()),
+//         "errors" => Ok("-".to_string()),
+//         "integers" => Ok(":".to_string()),
+//         "bulk_strings" => Ok("$".to_string()),
+//         "arrays" => Ok("*".to_string()),
+//         _ => Err("Unable to determine correct Redis protocol."),
+//     }
+// }
