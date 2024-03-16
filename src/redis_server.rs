@@ -1,3 +1,5 @@
+pub mod master;
+pub mod replica;
 mod timed_hashmap;
 
 use std::borrow::Cow;
@@ -5,7 +7,7 @@ use std::fmt::Display;
 use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpStream;
 
 use self::timed_hashmap::TimedHashMap;
 
@@ -32,47 +34,47 @@ impl Display for Command {
     }
 }
 
-pub async fn start_master(port: &str) {
-    let listener: TcpListener = TcpListener::bind(port).await.unwrap();
-    println!("Master started on port: {}", port);
+// pub async fn start_master(port: &str) {
+//     let listener: TcpListener = TcpListener::bind(port).await.unwrap();
+//     println!("Master started on port: {}", port);
+//
+//     loop {
+//         match listener.accept().await {
+//             Ok((socket, _)) => {
+//                 tokio::spawn(async move {
+//                     handle_connection(socket, "master").await;
+//                 });
+//             }
+//             Err(_) => eprintln!("Failed to start master instance."),
+//         }
+//     }
+// }
 
-    loop {
-        match listener.accept().await {
-            Ok((socket, _)) => {
-                tokio::spawn(async move {
-                    handle_connection(socket, "master").await;
-                });
-            }
-            Err(_) => eprintln!("Failed to start master instance."),
-        }
-    }
-}
-
-pub async fn start_replica(master_address: &str, port: &str) {
-    let listener = TcpListener::bind(port).await.unwrap();
-    println!("Replica started on port: {}", port);
-
-    let master_stream = TcpStream::connect(master_address).await.unwrap();
-    send_ping_to_master(master_stream).await;
-
-    loop {
-        match listener.accept().await {
-            Ok((socket, _)) => {
-                tokio::spawn(async move {
-                    handle_connection(socket, "slave").await;
-                });
-            }
-            Err(_) => eprintln!("Failed to start replica instance."),
-        }
-    }
-}
-
-async fn send_ping_to_master(mut stream: TcpStream) {
-    let ping = encode_resp_array("PING");
-    if let Err(e) = stream.write_all(ping.as_bytes()).await {
-        eprintln!("Failed to send Ping to master with error: {:?}", e);
-    }
-}
+// pub async fn start_replica(master_address: &str, port: &str) {
+//     let listener = TcpListener::bind(port).await.unwrap();
+//     println!("Replica started on port: {}", port);
+//
+//     let master_stream = TcpStream::connect(master_address).await.unwrap();
+//     send_ping_to_master(master_stream).await;
+//
+//     loop {
+//         match listener.accept().await {
+//             Ok((socket, _)) => {
+//                 tokio::spawn(async move {
+//                     handle_connection(socket, "slave").await;
+//                 });
+//             }
+//             Err(_) => eprintln!("Failed to start replica instance."),
+//         }
+//     }
+// }
+//
+// async fn send_ping_to_master(mut stream: TcpStream) {
+//     let ping = encode_resp_array("PING");
+//     if let Err(e) = stream.write_all(ping.as_bytes()).await {
+//         eprintln!("Failed to send Ping to master with error: {:?}", e);
+//     }
+// }
 
 async fn handle_connection(mut socket: TcpStream, role: &str) {
     let mut buf = [0; 1024];
@@ -116,7 +118,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                                 break;
                             }
                         } else if role == "slave" {
-                            let response = encode_resp_array("PONG");
+                            let response = encode_resp_array(&["PONG"]);
                             if let Err(e) = socket.write_all(response.as_bytes()).await {
                                 eprintln!("PING - Slave: Failed to write to client: {}", e);
                                 break;
@@ -281,10 +283,12 @@ fn encode_resp_bulk_string(input: &str) -> String {
     response
 }
 
-fn encode_resp_array(input: &str) -> String {
-    // TODO: modify this to to get the length of the array
-    let resp_bulk_string: String = encode_resp_bulk_string(input);
-    let response: String = format!("{}{}", String::from("*1\r\n"), resp_bulk_string);
+fn encode_resp_array(input: &[&str]) -> String {
+    let mut response = String::new();
+    response.push_str(format!("*{}{}", input.len(), String::from("\r\n")).as_str());
+    for el in input.iter() {
+        response.push_str(encode_resp_bulk_string(el).as_str());
+    }
     response
 }
 

@@ -3,7 +3,7 @@ mod redis_server;
 use std::{env, error::Error};
 
 use cli::{Cli, Role};
-use redis_server::{start_master, start_replica};
+use redis_server::{master, replica};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -11,9 +11,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let role: Role = cli_args.role.clone();
 
     if role.to_string() == "master" {
-        start_master(&cli_args.port).await;
+        master::start_master(&cli_args.port).await;
     } else {
-        start_replica(&cli_args.master_server, &cli_args.port).await;
+        replica::start_replica(&cli_args.master_server, &cli_args.port).await;
     }
 
     Ok(())
