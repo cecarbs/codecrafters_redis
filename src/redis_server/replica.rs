@@ -7,7 +7,7 @@ use crate::redis_server::handle_connection;
 
 use super::encode_resp_array;
 
-pub async fn start_replica(master_address: &str, address: &str) {
+pub async fn start_replica(master_address: &str, address: &str, replication_id: String) {
     let listener = TcpListener::bind(address).await.unwrap();
     println!("Replica started on port: {}", address);
 
@@ -17,8 +17,9 @@ pub async fn start_replica(master_address: &str, address: &str) {
     loop {
         match listener.accept().await {
             Ok((socket, _)) => {
+                let replication_id_clone = replication_id.clone();
                 tokio::spawn(async move {
-                    handle_connection(socket, "slave").await;
+                    handle_connection(socket, "slave", &replication_id_clone).await;
                 });
             }
             Err(_) => eprintln!("Failed to start replica instance."),

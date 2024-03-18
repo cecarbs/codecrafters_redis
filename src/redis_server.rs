@@ -19,6 +19,7 @@ enum Command {
     Get,
     Info,
     Replconf,
+    Psync,
     Unknown,
 }
 
@@ -31,12 +32,13 @@ impl Display for Command {
             Command::Get => write!(f, "get"),
             Command::Info => write!(f, "info"),
             Command::Replconf => write!(f, "replconf"),
+            Command::Psync => write!(f, "psync"),
             Command::Unknown => write!(f, "unknown"),
         }
     }
 }
 
-async fn handle_connection(mut socket: TcpStream, role: &str) {
+async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &String) {
     let mut buf = [0; 1024];
     let mut timed_hashmap: TimedHashMap<String, String> = TimedHashMap::new();
 
@@ -53,6 +55,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                 let request: Cow<'_, str> = String::from_utf8_lossy(&buf[..bytes_read]);
                 let decoded_str: Vec<String> =
                     decode_resp_bulk_string(request.to_string()).unwrap();
+                // TODO: refactor this so that all you need to do is make changes to Enum
                 let command: Command = match decoded_str[0].to_lowercase().as_str() {
                     "echo" => Command::Echo,
                     "ping" => Command::Ping,
@@ -60,6 +63,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                     "get" => Command::Get,
                     "info" => Command::Info,
                     "replconf" => Command::Replconf,
+                    "psync" => Command::Psync,
                     _ => Command::Unknown,
                 };
 
@@ -96,8 +100,11 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                                 decoded_str[2].to_owned(),
                                 None,
                             );
+
                             println!("Inserted into hashmap: {:?}", timed_hashmap);
-                            if let Err(e) = socket.write_all("+OK\r\n".as_bytes()).await {
+
+                            let response = encode_simple_string("OK");
+                            if let Err(e) = socket.write_all(response.as_bytes()).await {
                                 eprintln!("SET: Failed to write to client: {}", e);
                                 break;
                             }
@@ -152,12 +159,10 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
 
                         let encoded_role: String =
                             encode_resp_bulk_string(format!("role:{}", role).as_str());
+                        // TODO: Move this to master mod or initialize this when creating master
+                        // instance
                         let encoded_master_replid = encode_resp_bulk_string(
-                            format!(
-                                "master_replid:{}",
-                                "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
-                            )
-                            .as_str(),
+                            format!("master_replid:{}", replication_id).as_str(),
                         );
 
                         let encoded_master_repl_offset: String =
@@ -168,7 +173,6 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                             encoded_role, encoded_master_replid, encoded_master_repl_offset
                         );
 
-                        println!("Response is: response: {}", response);
                         let response: String = encode_resp_bulk_string(response.as_str());
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("INFO: Failed to write to client: {}", e);
@@ -176,9 +180,20 @@ async fn handle_connection(mut socket: TcpStream, role: &str) {
                         }
                     }
                     Command::Replconf => {
-                        let response: String = encode_resp_bulk_string("OK");
+                        let response: String = encode_simple_string("OK");
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("REPLCONF: Failed to write to client: {}", e);
+                            break;
+                        }
+                    }
+                    Command::Psync => {
+                        //TODO: Swap out '0' with offset
+                        let response = encode_simple_string(
+                            format!("FULLRESYNC {} 0", replication_id).as_str(),
+                        );
+                        if let Err(e) = socket.write_all(response.as_bytes()).await {
+                            eprintln!("PSYNC: Failed to write to to client: {}", e);
+                            break;
                         }
                     }
                     Command::Unknown => {
@@ -229,11 +244,15 @@ fn get_command_and_arguments(input: String) -> Vec<String> {
     result
 }
 
+fn encode_simple_string(input: &str) -> String {
+    let response = format!("+{}{}", input, String::from("\r\n"));
+    response
+}
+
 fn encode_resp_bulk_string(input: &str) -> String {
     let length: String = input.len().to_string();
     let response = format!(
-        "{}{}{}{}{}",
-        String::from("$"),
+        "${}{}{}{}",
         length,
         String::from("\r\n"),
         input,
