@@ -18,6 +18,5 @@ async fn main() -> Result<(), Box<dyn Error>> {
     } else {
         replica::start_replica(&cli_args.master_server, &cli_args.port, replication_id).await;
     }
-
     Ok(())
 }

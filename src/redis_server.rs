@@ -4,6 +4,9 @@ mod timed_hashmap;
 
 use std::borrow::Cow;
 use std::fmt::Display;
+use std::fs;
+use std::io;
+use std::num::ParseIntError;
 use std::time::Duration;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -77,12 +80,14 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                     }
                     Command::Ping => {
                         if role == "master" {
+                            println!("Master: received PING.");
                             let response = encode_resp_bulk_string("PONG");
                             if let Err(e) = socket.write_all(response.as_bytes()).await {
                                 eprintln!("PING - Master: Failed to write to client: {}", e);
                                 break;
                             }
                         } else if role == "slave" {
+                            println!("Slave: received PING.");
                             let response = encode_resp_array(&["PONG"]);
                             if let Err(e) = socket.write_all(response.as_bytes()).await {
                                 eprintln!("PING - Slave: Failed to write to client: {}", e);
@@ -154,6 +159,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                             }
                         }
                     }
+                    // Used by both master and slave
                     Command::Info => {
                         println!("Entering info command.");
 
@@ -179,13 +185,16 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                             break;
                         }
                     }
+                    // Used by master
                     Command::Replconf => {
+                        println!("Master received REPLCONF...");
                         let response: String = encode_simple_string("OK");
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("REPLCONF: Failed to write to client: {}", e);
                             break;
                         }
                     }
+                    // Used by master
                     Command::Psync => {
                         //TODO: Swap out '0' with offset
                         let response = encode_simple_string(
@@ -194,6 +203,17 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                         if let Err(e) = socket.write_all(response.as_bytes()).await {
                             eprintln!("PSYNC: Failed to write to to client: {}", e);
                             break;
+                        }
+
+                        let hex_rdb = "524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2";
+                        match hex_to_binary(hex_rdb) {
+                            Ok(binary) => {
+                                // binary now contains the RDB file contents as a Vec<u8>
+                                println!("Binary RDB file contents: {:?}", binary);
+                            }
+                            Err(err) => {
+                                eprintln!("Error parsing hexadecimal string: {}", err);
+                            }
                         }
                     }
                     Command::Unknown => {
@@ -261,7 +281,7 @@ fn encode_resp_bulk_string(input: &str) -> String {
     response
 }
 
-fn encode_resp_array(input: &[&str]) -> String {
+pub fn encode_resp_array(input: &[&str]) -> String {
     let mut response = String::new();
     response.push_str(format!("*{}{}", input.len(), String::from("\r\n")).as_str());
     for el in input.iter() {
@@ -269,3 +289,27 @@ fn encode_resp_array(input: &[&str]) -> String {
     }
     response
 }
+
+// TODO: delete later
+// fn create_rdb_file() -> io::Result<Vec<u8>> {
+//     fs::read("rdb.txt")
+// }
+
+fn hex_to_binary(hex_str: &str) -> Result<Vec<u8>, ParseIntError> {
+    // since each byte is is represented by two hexadecimal characters
+    let mut binary: Vec<u8> = Vec::with_capacity(hex_str.len() / 2);
+
+    // iterate over hexadecimal string two chars at a time
+    for i in (0..hex_str.len()).step_by(2) {
+        // parse each pair of hexadecimal char as u8
+        let byte = u8::from_str_radix(&hex_str[i..i + 2], 16)?;
+        binary.push(byte);
+    }
+
+    Ok(binary)
+}
+
+// fn send_rdb_file(file: Vec<u8>) {
+//     let length = file.len();
+//     let response = format!("${}{}{}", length, String::from("\r\n"), file.;
+// }

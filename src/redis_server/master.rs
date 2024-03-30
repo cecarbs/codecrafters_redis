@@ -19,6 +19,6 @@ pub async fn start_master(port: &str, replication_id: String) {
     }
 }
 
-async fn handle_client() {
-    todo!("placeholder");
-}
+// async fn handle_client() {
+//     todo!("placeholder");
+// }
