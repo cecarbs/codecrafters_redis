@@ -209,8 +209,21 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                         match hex_to_binary(hex_rdb) {
                             Ok(binary) => {
                                 // binary now contains the RDB file contents as a Vec<u8>
-                                println!("Binary RDB file contents: {:?}", binary);
+                                let length = binary.len();
+                                let response = format!("${}{}", length, String::from("\r\n"));
+                                let response_bytes = response.as_bytes();
+
+                                if socket.write(response_bytes).await.is_err() {
+                                    println!("Unable to write length prefix into buffer.");
+                                }
+                                if socket.write(binary.as_slice()).await.is_err() {
+                                    println!("Unable to write RDB data into buffer.");
+                                }
+                                if socket.flush().await.is_err() {
+                                    eprint!("Unable to flush.")
+                                };
                             }
+
                             Err(err) => {
                                 eprintln!("Error parsing hexadecimal string: {}", err);
                             }
@@ -311,5 +324,7 @@ fn hex_to_binary(hex_str: &str) -> Result<Vec<u8>, ParseIntError> {
 
 // fn send_rdb_file(file: Vec<u8>) {
 //     let length = file.len();
-//     let response = format!("${}{}{}", length, String::from("\r\n"), file.;
+//     let response = format!("${}{}", length, String::from("\r\n"));
+//
+//     if let Err(e) = stream.write
 // }
