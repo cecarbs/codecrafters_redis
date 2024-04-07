@@ -4,8 +4,9 @@ mod timed_hashmap;
 
 use std::borrow::Cow;
 use std::fmt::Display;
-use std::fs;
-use std::io;
+use std::net::SocketAddr;
+// use std::fs;
+// use std::io;
 use std::num::ParseIntError;
 use std::time::Duration;
 
@@ -41,19 +42,18 @@ impl Display for Command {
     }
 }
 
-async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &String) {
+async fn handle_connection(mut stream: TcpStream, role: &str, replication_id: &String) {
     let mut buf = [0; 1024];
     let mut timed_hashmap: TimedHashMap<String, String> = TimedHashMap::new();
 
+    let mut replica_address = String::new();
+
     loop {
-        match socket.read(&mut buf).await {
+        match stream.read(&mut buf).await {
             Ok(bytes_read) => {
                 if bytes_read == 0 {
                     println!("Connection closed by client.")
                 }
-
-                // let decoded_string =
-                //     parse_command_from_request(String::from_utf8(&buf[..bytes_read]).unwrap());
 
                 let request: Cow<'_, str> = String::from_utf8_lossy(&buf[..bytes_read]);
                 let decoded_str: Vec<String> =
@@ -73,7 +73,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                 match command {
                     Command::Echo => {
                         let response: String = encode_resp_bulk_string(&decoded_str[1]);
-                        if let Err(e) = socket.write_all(response.as_bytes()).await {
+                        if let Err(e) = stream.write_all(response.as_bytes()).await {
                             eprintln!("ECHO: Failed to write to client: {}", e);
                             break;
                         }
@@ -82,14 +82,14 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                         if role == "master" {
                             println!("Master: received PING.");
                             let response = encode_resp_bulk_string("PONG");
-                            if let Err(e) = socket.write_all(response.as_bytes()).await {
+                            if let Err(e) = stream.write_all(response.as_bytes()).await {
                                 eprintln!("PING - Master: Failed to write to client: {}", e);
                                 break;
                             }
                         } else if role == "slave" {
                             println!("Slave: received PING.");
                             let response = encode_resp_array(&["PONG"]);
-                            if let Err(e) = socket.write_all(response.as_bytes()).await {
+                            if let Err(e) = stream.write_all(response.as_bytes()).await {
                                 eprintln!("PING - Slave: Failed to write to client: {}", e);
                                 break;
                             }
@@ -109,7 +109,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                             println!("Inserted into hashmap: {:?}", timed_hashmap);
 
                             let response = encode_simple_string("OK");
-                            if let Err(e) = socket.write_all(response.as_bytes()).await {
+                            if let Err(e) = stream.write_all(response.as_bytes()).await {
                                 eprintln!("SET: Failed to write to client: {}", e);
                                 break;
                             }
@@ -125,7 +125,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                                 Some(ttl),
                             );
 
-                            if let Err(e) = socket.write_all("+OK\r\n".as_bytes()).await {
+                            if let Err(e) = stream.write_all("+OK\r\n".as_bytes()).await {
                                 eprintln!("SET: Failed to write to client: {}", e);
                                 break;
                             }
@@ -145,12 +145,12 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
 
                             println!("Attempting to send response: {:?}", response);
 
-                            if let Err(e) = socket.write_all(response.as_bytes()).await {
+                            if let Err(e) = stream.write_all(response.as_bytes()).await {
                                 eprintln!("GET: Failed to write to client: {}", e);
                                 break;
                             }
                         } else {
-                            match socket.write_all("$-1\r\n".as_bytes()).await {
+                            match stream.write_all("$-1\r\n".as_bytes()).await {
                                 Ok(_) => (),
                                 Err(_) => {
                                     eprintln!("Null bulk string.");
@@ -180,7 +180,7 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                         );
 
                         let response: String = encode_resp_bulk_string(response.as_str());
-                        if let Err(e) = socket.write_all(response.as_bytes()).await {
+                        if let Err(e) = stream.write_all(response.as_bytes()).await {
                             eprintln!("INFO: Failed to write to client: {}", e);
                             break;
                         }
@@ -189,18 +189,22 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                     Command::Replconf => {
                         println!("Master received REPLCONF...");
                         let response: String = encode_simple_string("OK");
-                        if let Err(e) = socket.write_all(response.as_bytes()).await {
+                        if let Err(e) = stream.write_all(response.as_bytes()).await {
                             eprintln!("REPLCONF: Failed to write to client: {}", e);
                             break;
                         }
                     }
                     // Used by master
                     Command::Psync => {
+                        // TODO: create method to keep track of replica address
+                        let peer_socket_address: SocketAddr = stream.peer_addr().unwrap();
+                        println!("Socket address of replica is: {}", peer_socket_address);
+
                         //TODO: Swap out '0' with offset
                         let response = encode_simple_string(
                             format!("FULLRESYNC {} 0", replication_id).as_str(),
                         );
-                        if let Err(e) = socket.write_all(response.as_bytes()).await {
+                        if let Err(e) = stream.write_all(response.as_bytes()).await {
                             eprintln!("PSYNC: Failed to write to to client: {}", e);
                             break;
                         }
@@ -213,13 +217,13 @@ async fn handle_connection(mut socket: TcpStream, role: &str, replication_id: &S
                                 let response = format!("${}{}", length, String::from("\r\n"));
                                 let response_bytes = response.as_bytes();
 
-                                if socket.write(response_bytes).await.is_err() {
+                                if stream.write(response_bytes).await.is_err() {
                                     println!("Unable to write length prefix into buffer.");
                                 }
-                                if socket.write(binary.as_slice()).await.is_err() {
+                                if stream.write(binary.as_slice()).await.is_err() {
                                     println!("Unable to write RDB data into buffer.");
                                 }
-                                if socket.flush().await.is_err() {
+                                if stream.flush().await.is_err() {
                                     eprint!("Unable to flush.")
                                 };
                             }
@@ -302,11 +306,6 @@ pub fn encode_resp_array(input: &[&str]) -> String {
     }
     response
 }
-
-// TODO: delete later
-// fn create_rdb_file() -> io::Result<Vec<u8>> {
-//     fs::read("rdb.txt")
-// }
 
 fn hex_to_binary(hex_str: &str) -> Result<Vec<u8>, ParseIntError> {
     // since each byte is is represented by two hexadecimal characters
