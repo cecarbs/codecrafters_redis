@@ -98,8 +98,14 @@ async fn handle_connection(mut stream: TcpStream, role: &str, replication_id: &S
                             break;
                         }
                     }
+                    // TODO: use replica_address to propogate
+                    // TODO: clean up this method, don't use length, have separate logic for slave
+                    // and master; otherwise, even slave will propogate to itself
                     Command::Set => match decoded_str.len() {
                         3 => {
+                            // TODO: refactor and separate master and slave commands
+                            let mut replica_stream =
+                                TcpStream::connect(replica_address.clone()).await.unwrap();
                             timed_hashmap.insert(
                                 decoded_str[1].to_owned(),
                                 decoded_str[2].to_owned(),
@@ -115,6 +121,9 @@ async fn handle_connection(mut stream: TcpStream, role: &str, replication_id: &S
                             }
                         }
                         5 => {
+                            // TODO: refactor and separate master and slave commands
+                            let mut replica_stream =
+                                TcpStream::connect(replica_address.clone()).await.unwrap();
                             // TODO: only works for 'px' implement other variation(s)
                             let milliseconds: u64 = decoded_str[4].to_owned().parse().unwrap();
                             let ttl: Duration = Duration::from_millis(milliseconds);
