@@ -16,7 +16,7 @@ pub async fn start_master(port: &str, replication_id: String) {
                     replication_id: replication_id.clone(),
                 };
                 tokio::spawn(async move {
-                    if let Err(e) = connection_handler(socket, handler).await {
+                    if let Err(e) = handle_connection(socket, handler).await {
                         eprintln!("Error in master connection: {}", e);
                     }
                 });

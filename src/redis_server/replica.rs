@@ -41,7 +41,7 @@ pub async fn start_replica(master_address: &str, address: &str, replication_id: 
                     replication_id: replication_id.clone(),
                 };
                 tokio::spawn(async move {
-                    if let Err(e) = connection_handler(socket, handler).await {
+                    if let Err(e) = handle_connection(socket, handler).await {
                         eprintln!("Error in replica connection: {}", e);
                     }
                 });
