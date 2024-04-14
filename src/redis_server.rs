@@ -42,6 +42,83 @@ impl Display for Command {
     }
 }
 
+pub trait ConnectionHandler {
+    // fn handle_echo(
+    //     &mut self,
+    //     decoded_str: &[String],
+    //     stream: &mut TcpStream,
+    // ) -> Result<(), Box<dyn std::error::Error>>;
+    // fn handle_ping(&mut self, stream: &mut TcpStream) -> Result<(), Box<dyn std::error::Error>>;
+    // fn handle_set(
+    //     &mut self,
+    //     decoded_str: &[String],
+    //     stream: &mut TcpStream,
+    // ) -> Result<(), Box<dyn std::error::Error>>;
+    // fn handle_get(
+    //     &mut self,
+    //     decoded_str: &[String],
+    //     stream: &mut TcpStream,
+    // ) -> Result<(), Box<dyn std::error::Error>>;
+    // fn handle_info(&mut self, stream: &mut TcpStream) -> Result<(), Box<dyn std::error::Error>>;
+    // fn handle_replconf(&mut self, stream: &mut TcpStream)
+    //     -> Result<(), Box<dyn std::error::Error>>;
+    // fn handle_psync(
+    //     &mut self,
+    //     stream: &mut TcpStream,
+    //     replication_id: &str,
+    // ) -> Result<(), Box<dyn std::error::Error>>;
+}
+
+async fn connection_handler<H: ConnectionHandler>(
+    mut stream: TcpStream,
+    mut handler: H,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut buf = [0; 1024];
+
+    loop {
+        match stream.read(&mut buf).await {
+            Ok(bytes_read) => {
+                if bytes_read == 0 {
+                    println!("Connection closed by client.");
+                    return Ok(());
+                }
+
+                let request: Cow<'_, str> = String::from_utf8_lossy(&buf[..bytes_read]);
+                let decoded_str: Vec<String> = decode_resp_bulk_string(request.to_string())?;
+
+                let command: Command = match decoded_str[0].to_lowercase().as_str() {
+                    "echo" => Command::Echo,
+                    "ping" => Command::Ping,
+                    "set" => Command::Set,
+                    "get" => Command::Get,
+                    "info" => Command::Info,
+                    "replconf" => Command::Replconf,
+                    "psync" => Command::Psync,
+                    _ => Command::Unknown,
+                };
+
+                match command {
+                    Command::Echo => handler.handle_echo(&decoded_str, &mut stream)?,
+                    Command::Ping => handler.handle_ping(&mut stream)?,
+                    Command::Set => handler.handle_set(&decoded_str, &mut stream)?,
+                    Command::Get => handler.handle_get(&decoded_str, &mut stream)?,
+                    Command::Info => handler.handle_info(&mut stream)?,
+                    Command::Replconf => handler.handle_replconf(&mut stream)?,
+                    Command::Psync => handler.handle_psync(&mut stream, &handler.replication_id)?,
+                    Command::Unknown => {
+                        eprintln!("Failed to parse command: unknown command.");
+                        return Ok(());
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Error reading from client: {}", e);
+                return Err(e.into());
+            }
+        }
+    }
+}
+
 async fn handle_connection(mut stream: TcpStream, role: &str, replication_id: &String) {
     let mut buf = [0; 1024];
     let mut timed_hashmap: TimedHashMap<String, String> = TimedHashMap::new();
@@ -102,6 +179,7 @@ async fn handle_connection(mut stream: TcpStream, role: &str, replication_id: &S
                     // TODO: clean up this method, don't use length, have separate logic for slave
                     // and master; otherwise, even slave will propogate to itself
                     Command::Set => match decoded_str.len() {
+                        // With expiration
                         3 => {
                             // TODO: refactor and separate master and slave commands
                             let mut replica_stream =
@@ -112,7 +190,7 @@ async fn handle_connection(mut stream: TcpStream, role: &str, replication_id: &S
                                 None,
                             );
 
-                            println!("Inserted into hashmap: {:?}", timed_hashmap);
+                            println!("Inserted into hashmap: {:?} with no expiry.", timed_hashmap);
 
                             let response = encode_simple_string("OK");
                             if let Err(e) = stream.write_all(response.as_bytes()).await {
@@ -120,11 +198,13 @@ async fn handle_connection(mut stream: TcpStream, role: &str, replication_id: &S
                                 break;
                             }
                         }
+                        // With expiration
                         5 => {
                             // TODO: refactor and separate master and slave commands
+                            // length of 5 means there's an expiration
                             let mut replica_stream =
                                 TcpStream::connect(replica_address.clone()).await.unwrap();
-                            // TODO: only works for 'px' implement other variation(s)
+                            // TODO: only works for 'px' (millisecomnds); 'px' means seconds
                             let milliseconds: u64 = decoded_str[4].to_owned().parse().unwrap();
                             let ttl: Duration = Duration::from_millis(milliseconds);
 
@@ -133,6 +213,8 @@ async fn handle_connection(mut stream: TcpStream, role: &str, replication_id: &S
                                 decoded_str[2].to_owned(),
                                 Some(ttl),
                             );
+
+                            println!("Inserted into hashmap: {:?} with expiry.", timed_hashmap);
 
                             if let Err(e) = stream.write_all("+OK\r\n".as_bytes()).await {
                                 eprintln!("SET: Failed to write to client: {}", e);

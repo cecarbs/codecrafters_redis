@@ -3,10 +3,29 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
-use crate::redis_server::handle_connection;
+use crate::redis_server::{connection_handler, handle_connection};
 
-use super::encode_resp_array;
+use super::{encode_resp_array, timed_hashmap::TimedHashMap, ConnectionHandler};
 
+// pub async fn start_replica(master_address: &str, address: &str, replication_id: String) {
+//     let listener = TcpListener::bind(address).await.unwrap();
+//     println!("Replica started on port: {}", address);
+//
+//     let mut master_stream = TcpStream::connect(master_address).await.unwrap();
+//     send_handshake_to_master(&mut master_stream, address).await;
+//
+//     loop {
+//         match listener.accept().await {
+//             Ok((socket, _)) => {
+//                 let replication_id_clone = replication_id.clone();
+//                 tokio::spawn(async move {
+//                     handle_connection(socket, "slave", &replication_id_clone).await;
+//                 });
+//             }
+//             Err(_) => eprintln!("Failed to start replica instance."),
+//         }
+//     }
+// }
 pub async fn start_replica(master_address: &str, address: &str, replication_id: String) {
     let listener = TcpListener::bind(address).await.unwrap();
     println!("Replica started on port: {}", address);
@@ -17,15 +36,27 @@ pub async fn start_replica(master_address: &str, address: &str, replication_id: 
     loop {
         match listener.accept().await {
             Ok((socket, _)) => {
-                let replication_id_clone = replication_id.clone();
+                let handler = SlaveConnectionHandler {
+                    timed_hashmap: TimedHashMap::new(),
+                    replication_id: replication_id.clone(),
+                };
                 tokio::spawn(async move {
-                    handle_connection(socket, "slave", &replication_id_clone).await;
+                    if let Err(e) = connection_handler(socket, handler).await {
+                        eprintln!("Error in replica connection: {}", e);
+                    }
                 });
             }
             Err(_) => eprintln!("Failed to start replica instance."),
         }
     }
 }
+
+struct SlaveConnectionHandler {
+    timed_hashmap: TimedHashMap<String, String>,
+    replication_id: String,
+}
+
+impl ConnectionHandler for SlaveConnectionHandler {}
 
 async fn send_handshake_to_master(stream: &mut TcpStream, port: &str) {
     send_ping_to_master(stream).await;
