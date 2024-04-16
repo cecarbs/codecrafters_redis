@@ -43,30 +43,38 @@ impl Display for Command {
 }
 
 pub trait ConnectionHandler {
-    // fn handle_echo(
-    //     &mut self,
-    //     decoded_str: &[String],
-    //     stream: &mut TcpStream,
-    // ) -> Result<(), Box<dyn std::error::Error>>;
-    // fn handle_ping(&mut self, stream: &mut TcpStream) -> Result<(), Box<dyn std::error::Error>>;
-    // fn handle_set(
-    //     &mut self,
-    //     decoded_str: &[String],
-    //     stream: &mut TcpStream,
-    // ) -> Result<(), Box<dyn std::error::Error>>;
-    // fn handle_get(
-    //     &mut self,
-    //     decoded_str: &[String],
-    //     stream: &mut TcpStream,
-    // ) -> Result<(), Box<dyn std::error::Error>>;
-    // fn handle_info(&mut self, stream: &mut TcpStream) -> Result<(), Box<dyn std::error::Error>>;
-    // fn handle_replconf(&mut self, stream: &mut TcpStream)
-    //     -> Result<(), Box<dyn std::error::Error>>;
-    // fn handle_psync(
-    //     &mut self,
-    //     stream: &mut TcpStream,
-    //     replication_id: &str,
-    // ) -> Result<(), Box<dyn std::error::Error>>;
+    async fn handle_echo(
+        &mut self,
+        decoded_str: &[String],
+        stream: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error>>;
+    async fn handle_ping(
+        &mut self,
+        stream: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error>>;
+    async fn handle_set(
+        &mut self,
+        decoded_str: &[String],
+        stream: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error>>;
+    async fn handle_get(
+        &mut self,
+        decoded_str: &[String],
+        stream: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error>>;
+    async fn handle_info(
+        &mut self,
+        stream: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error>>;
+    async fn handle_replconf(
+        &mut self,
+        stream: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error>>;
+    async fn handle_psync(
+        &mut self,
+        stream: &mut TcpStream,
+        replication_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error>>;
 }
 
 async fn handle_connection<H: ConnectionHandler>(

@@ -3,7 +3,7 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
-use crate::redis_server::{connection_handler, handle_connection};
+use crate::redis_server::handle_connection;
 
 use super::{encode_resp_array, timed_hashmap::TimedHashMap, ConnectionHandler};
 
