@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{net::SocketAddr, time::Duration};
 
 use tokio::{
     io::AsyncWriteExt,
@@ -6,7 +6,8 @@ use tokio::{
 };
 
 use crate::redis_server::{
-    connection_handler, encode_resp_bulk_string, encode_simple_string, handle_connection, replica,
+    connection_handler, encode_resp_bulk_string, encode_simple_string, handle_connection,
+    hex_to_binary, replica,
 };
 
 use super::{timed_hashmap::TimedHashMap, ConnectionHandler};
@@ -161,14 +162,39 @@ impl ConnectionHandler for MasterConnectionHandler {
         &mut self,
         stream: &mut TcpStream,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        todo!()
+        println!("Master: entering INFO command...");
+        let encoded_role: String = encode_resp_bulk_string("master");
+        let encoded_master_replid =
+            encode_resp_bulk_string(format!("master_replid:{}", self.replication_id).as_str());
+        // TODO: Modify to use dynamic offset values
+        let encoded_master_repl_offset: String = encode_resp_bulk_string("master_repl_offset:0");
+        let response: String = format!(
+            "{}{}{}",
+            encoded_role, encoded_master_replid, encoded_master_repl_offset
+        );
+
+        if stream
+            .write_all(encode_resp_bulk_string(response.as_str()).as_bytes())
+            .await
+            .is_ok()
+        {
+            Ok(())
+        } else {
+            Err("Master: failed to send successful response in INFO command.".into())
+        }
     }
 
     async fn handle_replconf(
         &mut self,
         stream: &mut TcpStream,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        todo!()
+        println!("Master: received REPLCONF...");
+        let response: String = encode_simple_string("OK");
+        if stream.write_all(response.as_bytes()).await.is_ok() {
+            Ok(())
+        } else {
+            Err("Master: failed to send successful response in REPLCONF command.".into())
+        }
     }
 
     async fn handle_psync(
@@ -176,6 +202,41 @@ impl ConnectionHandler for MasterConnectionHandler {
         stream: &mut TcpStream,
         replication_id: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        todo!()
+        // TODO: create method to keep track of replica address
+        let peer_socket_address: SocketAddr = stream.peer_addr().unwrap();
+        println!("Socket address of replica is: {}", peer_socket_address);
+        // TODO: assign / add replica address to 'replicas'
+
+        //TODO: Swap out '0' with offset
+        let response = encode_simple_string(format!("FULLRESYNC {} 0", replication_id).as_str());
+        if let Err(e) = stream.write_all(response.as_bytes()).await {
+            eprintln!("PSYNC: Failed to write to to client: {}", e);
+        }
+
+        let hex_rdb = "524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2";
+        match hex_to_binary(hex_rdb) {
+            Ok(binary) => {
+                // binary now contains the RDB file contents as a Vec<u8>
+                let length = binary.len();
+                let response = format!("${}{}", length, String::from("\r\n"));
+                let response_bytes = response.as_bytes();
+
+                if stream.write(response_bytes).await.is_err() {
+                    println!("Unable to write length prefix into buffer.");
+                }
+                if stream.write(binary.as_slice()).await.is_err() {
+                    println!("Unable to write RDB data into buffer.");
+                }
+                if stream.flush().await.is_err() {
+                    eprint!("Unable to flush.")
+                };
+                Ok(())
+            }
+
+            Err(err) => {
+                eprintln!("Error parsing hexadecimal string: {}", err);
+                Err("Master: error parsing hexadecimal string.".into())
+            }
+        }
     }
 }
