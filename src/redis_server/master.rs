@@ -22,6 +22,7 @@ pub async fn start_master(port: &str, replication_id: String) {
                 let handler = MasterConnectionHandler {
                     timed_hashmap: TimedHashMap::new(),
                     replication_id: replication_id.clone(),
+                    replicas: Vec::new(),
                 };
                 tokio::spawn(async move {
                     if let Err(e) = handle_connection(socket, handler).await {
@@ -83,7 +84,7 @@ impl ConnectionHandler for MasterConnectionHandler {
             Ok(())
         } else {
             eprintln!("Master: failed to reply with PONG.");
-            Err("hello".into())
+            Err("Master: failed to send PONG response.".into())
         }
     }
 
